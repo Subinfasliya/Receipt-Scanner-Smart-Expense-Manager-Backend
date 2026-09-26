@@ -1,6 +1,7 @@
 const express = require("express");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
+const mongoSanitize = require('express')
 const apiRouter = require("./routes");
 const errorHandler = require("./middlewares/errorHandler");
 const app = express();
