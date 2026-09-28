@@ -1,4 +1,5 @@
 const User = require("../models/userModel");
+const { successResponse } = require("../utils/apiResponse");
 const createError = require("../utils/createError");
 const register = async (req, res, next) => {
   try {
@@ -6,17 +7,18 @@ const register = async (req, res, next) => {
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Existing user 
+    // Existing user
     const userExist = await User.findOne({ email: normalizedEmail });
 
     if (userExist) throw createError(409, "Email is already registered");
 
-    const hashedPassword = await hashPassword()
+    const user = {
+      name,
+      email,
+      phone,
+    }
 
-    res.status(201).json({
-      success: true,
-      message: "Successfully registered",
-    });
+    return successResponse(res, 201, "User registered successfully", user);
   } catch (error) {
     next(error);
   }
