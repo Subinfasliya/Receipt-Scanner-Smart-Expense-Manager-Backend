@@ -1,26 +1,25 @@
-require('dotenv').config()
+const env = require("./src/config/env")
 const express = require("express");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const cors = require("cors");
 const mongoSanitize = require("express-mongo-sanitize");
-const apiRouter = require("./routes");
-const errorHandler = require("./middlewares/errorHandler");
+const apiRouter = require("./src/routes");
+const errorHandler = require("./src/middlewares/errorHandler");
+const notFound = require("./src/middlewares/notFound");
 
 const app = express();
 
 // App Security and proxy settings
 app.disable("x-powered-by");
-app.set("trust proxy", Number(process.env.TRUST_PROXY || 1));
+app.set("trust proxy", (env.trustProxy || 1));
 
 // Security headers
 app.use(helmet());
 
 // Cors configuration
 const corsOptions = {
-  origin: process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(",")
-    : "*",
+  origin: env.cors.allowedOrigins,
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
 };
@@ -42,16 +41,6 @@ const sanitizeRequest = (req, res, next) => {
 
 app.use(sanitizeRequest);
 
-// Health Check Route
-app.get("/api/v1/health", (req, res) => {
-  res.status(200).json({ status: "success", message: "API Healthy..." });
-});
-
-// Public route
-app.get("/", (req, res) => {
-  res.status(200).send("Hello World");
-});
-
 // Rate Limiter Configuration
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // time period 15 mint
@@ -67,7 +56,38 @@ const apiLimiter = rateLimit({
 // Main API Routes with Rate Limited
 app.use("/api", apiLimiter, apiRouter);
 
+// Database ready Check Route
+app.get("/api/v1/ready", async (req, res) => {
+  const mongoose = require("mongoose");
+  res.json({
+    success: true,
+    message: "API is healthy",
+    environment: env.nodeEnv || "development",
+    database:
+      mongoose.connection.readyState === 1 ? "connected" : "disconnected",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Health check up route
+app.get("/api/v1/health", (req, res) =>
+  res.json({
+    success: true,
+    message: "ScanSpend API is healthy",
+    timestamp: new Date().toISOString(),
+  }),
+);
+
+// Public route
+app.get("/", (req, res) =>
+  res.json({
+    success: true,
+    message: "ScanSpend Smart Expense Tracking App API",
+  }),
+);
+
 // Not found handler middleware
+app.use(notFound);
 
 // Global Error Handler Middleware
 app.use(errorHandler);

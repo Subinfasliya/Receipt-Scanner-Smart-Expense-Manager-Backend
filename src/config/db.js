@@ -1,15 +1,15 @@
-require("dotenv").config();
+const env = require('./env')
 
 const mongoose = require("mongoose");
 
 const connectDB = async () => {
-  if (!process.env.MONGODB_URI) {
+  if (!env.mongoUri) {
     console.error("CRITICAL ERROR: MONGODB_URI is not defined in env files.");
     process.exit(1);
   }
 
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI, {
+    const conn = await mongoose.connect(env.mongoUri, {
       maxPoolSize: 10,
     });
 
