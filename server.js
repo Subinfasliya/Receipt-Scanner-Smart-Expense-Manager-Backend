@@ -1,7 +1,7 @@
-require("dotenv").config();
+const env = require('./src/config/env')
 const app = require("./app");
-const connectDB = require("./config/db");
-const PORT = process.env.PORT;
+const connectDB = require("./src/config/db");
+const PORT = env.port;
 
 const startServer = async () => {
   try {
@@ -14,7 +14,11 @@ const startServer = async () => {
 
     const shutdown = (signal) => {
       console.log(`${signal} received, shutting down`);
-      server.close(() => process.exit(0));
+      server.close(async () => {
+        const mongoose = require("mongoose");
+        await mongoose.connection.close();
+        process.exit(0);
+      });
     };
 
     process.once("SIGTERM", () => shutdown("SIGTERM"));
