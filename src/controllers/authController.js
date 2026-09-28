@@ -19,6 +19,7 @@ const register = async (req, res, next) => {
     }
 
     return successResponse(res, 201, "User registered successfully", user);
+    
   } catch (error) {
     next(error);
   }
