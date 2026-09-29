@@ -16,15 +16,15 @@ const envSchema = Joi.object({
   }),
 
   // Secrets & Tokens
-//   ACCESS_TOKEN_SECRET: Joi.string().required().messages({
-//     "any.required": "ACCESS_TOKEN_SECRET is required to sign access tokens.",
-//   }),
+  ACCESS_TOKEN_SECRET: Joi.string().required().messages({
+    "any.required": "ACCESS_TOKEN_SECRET is required to sign access tokens.",
+  }),
 
-//   REFRESH_TOKEN_SECRET: Joi.string().required().messages({
-//     "any.required": "REFRESH_TOKEN_SECRET is required to sign refresh tokens.",
-//   }),
-//   ACCESS_TOKEN_EXPIRY: Joi.string().default("15m"),
-//   REFRESH_TOKEN_EXPIRY: Joi.string().default("7d"),
+  REFRESH_TOKEN_SECRET: Joi.string().required().messages({
+    "any.required": "REFRESH_TOKEN_SECRET is required to sign refresh tokens.",
+  }),
+  ACCESS_TOKEN_EXPIRY: Joi.string().default("15m"),
+  REFRESH_TOKEN_EXPIRY: Joi.string().default("7d"),
 
   // CORS Options
   ALLOWED_ORIGINS: Joi.string().default("http://localhost:5173,http://localhost:3000"),

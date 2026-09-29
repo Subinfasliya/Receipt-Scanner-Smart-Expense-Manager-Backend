@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const refreshTokenSchema = new mongoose.Schema(
   {
-    user: {
+    userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
@@ -15,11 +15,15 @@ const refreshTokenSchema = new mongoose.Schema(
       unique: true,
       index: true,
     },
+    familyId: {
+      type: String,
+      required: true,
+      index: true,
+    },
 
     expiresAt: {
       type: Date,
       required: true,
-      index: true,
     },
 
     revokedAt: {
@@ -32,31 +36,33 @@ const refreshTokenSchema = new mongoose.Schema(
       default: null,
     },
 
+    lastUsedAt: {
+      type: Date,
+      default: null,
+    },
+
+    // Useful for session/device management and security auditing.
     userAgent: {
       type: String,
       default: null,
+      maxlength: 1000,
     },
 
     ipAddress: {
       type: String,
       default: null,
+      maxlength: 100,
     },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 /*
  * MongoDB automatically removes the document
  * after expiresAt is reached.
  */
-refreshTokenSchema.index(
-  { expiresAt: 1 },
-  { expireAfterSeconds: 0 }
-);
+refreshTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
-module.exports = mongoose.model(
-  "RefreshToken",
-  refreshTokenSchema
-);
+module.exports = mongoose.model("RefreshToken", refreshTokenSchema);
