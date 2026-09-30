@@ -33,13 +33,13 @@ const envSchema = Joi.object({
   ),
 
   // SMTP Settings
-  SMPT_HOST: Joi.string().required().messages({
+  SMTP_HOST: Joi.string().required().messages({
     "any.required": "SMTP_HOST is required for email delivery.",
   }),
 
   SMTP_PORT: Joi.number().port().default(587),
 
-  SMPT_SECURE: Joi.boolean().default(true),
+  SMTP_SECURE: Joi.boolean().default(true),
 
   SMTP_USER: Joi.string().required().messages({
     "any.required": "SMTP_USER is required for email authentication.",
@@ -56,8 +56,6 @@ const envSchema = Joi.object({
 
   CLIENT_URL: Joi.string().uri().default("http://localhost:5173"),
 }).unknown(true); // Allow standard OS-level process variables (PATH, HOME, etc.)
-
-// SMPT
 
 // 2. Validate process.env against schema with abortEarly: false
 const { error, value: envVars } = envSchema.validate(process.env, {
