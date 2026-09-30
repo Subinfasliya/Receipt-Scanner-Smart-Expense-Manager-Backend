@@ -22,27 +22,27 @@ const registerSchema = Joi.object({
 
 //Login Validation Schema
 const loginSchema = Joi.object({
-  email: Joi.string()
-    .trim()
-    .lowercase()
-    .email()
-    .required()
-    .messages({
-      "string.empty": "Email is required",
-      "string.email": "Please provide a valid email",
-    }),
+  email: Joi.string().trim().lowercase().email().required().messages({
+    "string.empty": "Email is required",
+    "string.email": "Please provide a valid email",
+  }),
 
-  password: Joi.string()
-    .required()
-    .messages({
-      "string.empty": "Password is required",
-    }),
-}).options({
-  abortEarly: false,
-});
+  password: Joi.string().required().messages({
+    "string.empty": "Password is required",
+  }),
+})
 
+// Forgot Password
+
+const forgotPasswordSchema = Joi.object({
+  email: Joi.string().trim().lowercase().email().required().messages({
+    "string.empty": "Email is required",
+    "string.email": "Please provide a valid email",
+  }),
+})
 
 module.exports = {
   registerSchema,
   loginSchema,
+  forgotPasswordSchema,
 };

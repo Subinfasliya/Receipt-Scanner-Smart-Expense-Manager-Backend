@@ -1,12 +1,14 @@
 const User = require("../models/userModel");
 const RefreshToken = require("../models/refreshToken");
-
+const PasswordResetToken = require("../models/passwordResetToken");
 const { hashPassword, comparePassword } = require("../utils/password");
 
 const {
   generateRefreshToken,
   hashRefreshToken,
   generateRefreshTokenFamilyId,
+  generatePasswordResetToken,
+  hashPasswordResetToken,
 } = require("../utils/crypto");
 
 const { createAccessToken } = require("../utils/jwt");
@@ -359,9 +361,41 @@ const logoutUser = async ({ refreshToken }) => {
   );
 };
 
+// lOGOUT ALL DEVICES
+const logoutAllUserSessions = async (userId) => {
+  await RefreshToken.updateMany(
+    { userId, revokedAt: null },
+    { $set: { revokedAt: new Date() } },
+  );
+};
+
+//forgot password
+const forgotPasswordService= async ({ email }) => {
+  const normalizedEmail = email.trim().toLowerCase();
+  const user = await User.findOne({ email: normalizedEmail });
+  /* * IMPORTANT: * Do not reveal whether the email exists. */
+  if (!user) {
+    return;
+  } // Remove any previous unused reset tokens
+  await PasswordResetToken.deleteMany({ user: user._id, usedAt: null });
+  // Generate cryptographically secure token
+  const rawToken = generatePasswordResetToken(); // Store only the hash
+  const tokenHash = hashPasswordResetToken(rawToken); // Token expires after 15 minutes
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+  await PasswordResetToken.create({ user: user._id, tokenHash, expiresAt });
+  /* * IMPORTANT: * rawToken should be sent only through the * password-reset email. * * Example: * https://your-frontend.com/reset-password?token=${rawToken} */
+  return {
+    user,
+    rawToken,
+  };
+};
+
 module.exports = {
   registerUser,
   loginUser,
   refreshAccessToken,
   logoutUser,
+  logoutAllUserSessions,
+  forgotPasswordService,
 };

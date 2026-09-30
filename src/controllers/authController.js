@@ -3,6 +3,8 @@ const {
   loginUser,
   refreshAccessToken,
   logoutUser,
+  logoutAllUserSessions,
+  forgotPasswordService,
 } = require("../services/authService");
 const { successResponse } = require("../utils/apiResponse");
 const { setRefreshCookie, clearRefreshCookie } = require("../utils/cookies");
@@ -114,10 +116,60 @@ const logout = async (req, res, next) => {
   }
 };
 
+// Logout All Devices
+const logoutAll = async (req, res, next) => {
+  try {
+    await logoutAllUserSessions(req.user_id);
+
+    //clear the current browser's refresh cookie
+    clearRefreshCookie(res);
+
+    return successResponse(
+      res,
+      200,
+      "Logged out from all devices successfully",
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Forgot Password
+const forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    const result = await forgotPasswordService({
+      email,
+    });
+
+    /* * If an account exists, an email will be sent. * * If it doesn't exist, we intentionally return * the exact same response. */
+
+    if (result) {
+      await sendPasswordResetEmail({
+        email: result.user.email,
+        name: result.user.name,
+        resetToken: result.rawToken,
+      });
+    }
+
+    return successResponse(
+      res,
+      200,
+      "If an account exists for this email, reset instructions have been sent.",
+    );
+    
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   register,
   login,
   refresh,
   getMe,
   logout,
+  logoutAll,
+  forgotPassword,
 };

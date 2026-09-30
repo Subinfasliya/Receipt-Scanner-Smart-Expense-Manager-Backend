@@ -19,7 +19,6 @@ const passwordResetTokenSchema = new mongoose.Schema(
     expiresAt: {
       type: Date,
       required: true,
-      index: true,
     },
 
     usedAt: {
@@ -29,18 +28,12 @@ const passwordResetTokenSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 /*
  * Automatically delete expired reset tokens.
  */
-passwordResetTokenSchema.index(
-  { expiresAt: 1 },
-  { expireAfterSeconds: 0 }
-);
+passwordResetTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
-module.exports = mongoose.model(
-  "PasswordResetToken",
-  passwordResetTokenSchema
-);
+module.exports = mongoose.model("PasswordResetToken", passwordResetTokenSchema);
