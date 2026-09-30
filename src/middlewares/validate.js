@@ -1,3 +1,5 @@
+const createError = require("../utils/createError");
+
 const validate = (schema) => {
   return (req, res, next) => {
     const { error, value } = schema.validate(req.body, {
@@ -6,11 +8,11 @@ const validate = (schema) => {
     });
 
     if (error) {
-      const errorMessage = error.details.map((detail) => detail.message);
-      return res.status(400).json({
-        status: "fail",
-        errorMessage,
-      });
+      const details = error.details.map(({ message, path }) => ({
+        message,
+        path,
+      }));
+      return next(createError(400, "Validation failed", details));
     }
 
     req.body = value;

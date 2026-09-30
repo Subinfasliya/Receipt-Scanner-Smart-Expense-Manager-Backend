@@ -3,6 +3,7 @@ const apiRouter = require("./src/routes");
 const errorHandler = require("./src/middlewares/errorHandler");
 const notFound = require("./src/middlewares/notFound");
 const configureSecurityMiddleware = require("./src/middlewares/security");
+const { successResponse } = require("./src/utils/apiResponse");
 
 const app = express();
 
@@ -12,10 +13,7 @@ configureSecurityMiddleware(app);
 
 // Public route
 app.get("/", (req, res) =>
-  res.json({
-    success: true,
-    message: "ScanSpend Smart Expense Tracking App API",
-  }),
+  successResponse(res, 200, "ScanSpend Smart Expense Tracking App API"),
 );
 
 
