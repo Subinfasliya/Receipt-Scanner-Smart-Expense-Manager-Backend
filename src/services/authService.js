@@ -17,6 +17,7 @@ const mongoose = require("mongoose");
 
 // Constants
 const REFRESH_TOKEN_EXPIRES_IN_MS = 7 * 24 * 60 * 60 * 1000;
+const PASSWORD_RESET_EXPIRES_IN_MS = 15 * 60 * 1000; // 15mint
 
 const registerUser = async ({
   name,
@@ -370,7 +371,7 @@ const logoutAllUserSessions = async (userId) => {
 };
 
 //forgot password
-const forgotPasswordService= async ({ email }) => {
+const forgotPasswordService = async ({ email }) => {
   const normalizedEmail = email.trim().toLowerCase();
   const user = await User.findOne({ email: normalizedEmail });
   /* * IMPORTANT: * Do not reveal whether the email exists. */
@@ -381,7 +382,7 @@ const forgotPasswordService= async ({ email }) => {
   // Generate cryptographically secure token
   const rawToken = generatePasswordResetToken(); // Store only the hash
   const tokenHash = hashPasswordResetToken(rawToken); // Token expires after 15 minutes
-  const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+  const expiresAt = new Date(Date.now() + PASSWORD_RESET_EXPIRES_IN_MS);
 
   await PasswordResetToken.create({ user: user._id, tokenHash, expiresAt });
   /* * IMPORTANT: * rawToken should be sent only through the * password-reset email. * * Example: * https://your-frontend.com/reset-password?token=${rawToken} */
