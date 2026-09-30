@@ -392,6 +392,97 @@ const forgotPasswordService = async ({ email }) => {
   };
 };
 
+// Reset Password
+const resetPasswordService = async ({ token, password }) => {
+  const tokenHash = hashPasswordResetToken(token);
+  const session = await mongoose.startSession();
+  try {
+    await session.withTransaction(async () => {
+      /* * 1. Find valid reset token * * IMPORTANT: * TTL is only cleanup. * We explicitly check expiresAt > now. */
+      const resetToken = await PasswordResetToken.findOne({
+        tokenHash,
+        usedAt: null,
+        expiresAt: { $gt: new Date() },
+      }).session(session);
+      if (!resetToken) {
+        throw createError(400, "Invalid or expired password reset token");
+      }
+      /* * 2. Find user */
+      const user = await User.findById(resetToken.user).session(session);
+      if (!user) {
+        throw createError(400, "Invalid or expired password reset token");
+      }
+      /* * 3. Hash new password */
+      const hashedPassword = await hashPassword(password);
+
+      /* * 4. Update password */
+      user.password = hashedPassword;
+
+      /* * Track when password changed. */
+      user.passwordChangedAt = new Date();
+
+      await user.save({ session, validateBeforeSave: false });
+
+      /* * 5. Mark reset token as used */
+      resetToken.usedAt = new Date();
+      await resetToken.save({ session, validateBeforeSave: false });
+
+      /* * 6. Revoke ALL refresh sessions */
+      await RefreshToken.updateMany(
+        { userId: user._id, revokedAt: null },
+        { $set: { revokedAt: new Date() } },
+        { session },
+      );
+    });
+  } finally {
+    await session.endSession();
+  }
+};
+
+// Change Password Service
+const changePasswordService = async ({
+  userId,
+  currentPassword,
+  newPassword,
+}) => {
+  const user = await User.findById(userId).select("+password");
+  
+  if (!user) {
+    throw createError(401, "User not found");
+  }
+  /* * Verify current password */
+  const isCurrentPasswordValid = await comparePassword(
+    currentPassword,
+    user.password,
+  );
+  if (!isCurrentPasswordValid) {
+    throw createError(401, "Current password is incorrect");
+  }
+  /* * Prevent using the same password */
+  const isSamePassword = await comparePassword(newPassword, user.password);
+
+  if (isSamePassword) {
+    throw createError(
+      400,
+      "New password must be different from your current password",
+    );
+  }
+  /* * Hash new password */
+  const hashedPassword = await hashPassword(newPassword);
+
+  /* * Update password */
+  user.password = hashedPassword;
+
+  user.passwordChangedAt = new Date();
+  await user.save({ validateBeforeSave: false });
+
+  /* * Revoke ALL refresh sessions */
+  await RefreshToken.updateMany(
+    { userId: user._id, revokedAt: null },
+    { $set: { revokedAt: new Date() } },
+  );
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -399,4 +490,6 @@ module.exports = {
   logoutUser,
   logoutAllUserSessions,
   forgotPasswordService,
+  resetPasswordService,
+  changePasswordService,
 };

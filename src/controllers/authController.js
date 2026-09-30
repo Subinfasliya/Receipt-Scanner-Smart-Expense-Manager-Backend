@@ -5,6 +5,8 @@ const {
   logoutUser,
   logoutAllUserSessions,
   forgotPasswordService,
+  resetPasswordService,
+  changePasswordService,
 } = require("../services/authService");
 const { sendPasswordResetEmail } = require("../services/emailService");
 const { successResponse } = require("../utils/apiResponse");
@@ -159,7 +161,43 @@ const forgotPassword = async (req, res, next) => {
       200,
       "If an account exists for this email, reset instructions have been sent.",
     );
-    
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Reset Password
+const resetPassword = async (req, res, next) => {
+  try {
+    await resetPasswordService({
+      token: req.body.token,
+      password: req.body.password,
+    });
+    return successResponse(
+      res,
+      200,
+      "Password reset successfully. Please login again.",
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Change Password
+const changePassword = async (req, res, next) => {
+  try {
+    await changePasswordService({
+      userId: req.user._id,
+      currentPassword: req.body.currentPassword,
+      newPassword: req.body.newPassword,
+    });
+    /* * The current refresh cookie belongs * to the old authenticated session. * * Since all sessions were revoked, * remove the browser cookie as well. */
+    clearRefreshCookie(res);
+    return successResponse(
+      res,
+      200,
+      "Password changed successfully. Please login again.",
+    );
   } catch (error) {
     next(error);
   }
@@ -173,4 +211,6 @@ module.exports = {
   logout,
   logoutAll,
   forgotPassword,
+  resetPassword,
+  changePassword,
 };

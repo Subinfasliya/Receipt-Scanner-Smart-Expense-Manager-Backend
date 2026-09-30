@@ -2,7 +2,7 @@ const createError = require("../utils/createError");
 
 const validate = (schema) => {
   return (req, res, next) => {
-    const { error, value } = schema.validate(req.body, {
+    const { error, value } = schema.validate(req.body ?? {}, {
       abortEarly: false,
       stripUnknown: true,
     });
