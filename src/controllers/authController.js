@@ -6,6 +6,7 @@ const {
   logoutAllUserSessions,
   forgotPasswordService,
 } = require("../services/authService");
+const { sendPasswordResetEmail } = require("../services/emailService");
 const { successResponse } = require("../utils/apiResponse");
 const { setRefreshCookie, clearRefreshCookie } = require("../utils/cookies");
 
