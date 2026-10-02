@@ -8,6 +8,7 @@ const {
   forgotPassword,
   resetPassword,
   changePassword,
+  verifyEmailController,
 } = require("../../controllers/authController");
 const { protect } = require("../../middlewares/auth/authMiddleware");
 const validate = require("../../middlewares/validate");
@@ -52,6 +53,6 @@ authRouter.post(
   changePassword,
 );
 
-
+authRouter.get("/verify-email/:token", verifyEmailController);
 
 module.exports = authRouter;

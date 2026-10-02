@@ -7,6 +7,7 @@ const {
   forgotPasswordService,
   resetPasswordService,
   changePasswordService,
+  verifyEmail,
 } = require("../services/authService");
 const { sendPasswordResetEmail } = require("../services/emailService");
 const { successResponse } = require("../utils/apiResponse");
@@ -203,6 +204,25 @@ const changePassword = async (req, res, next) => {
   }
 };
 
+
+const verifyEmailController = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    await verifyEmail(req.params.token);
+
+    return successResponse(
+      res,
+      200,
+      "Email verified successfully"
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -213,4 +233,5 @@ module.exports = {
   forgotPassword,
   resetPassword,
   changePassword,
+  verifyEmailController
 };

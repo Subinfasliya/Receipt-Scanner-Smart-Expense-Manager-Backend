@@ -1,4 +1,5 @@
 const User = require("../models/userModel");
+const EmailVerificationToken = require("../models/emailVerificationToken");
 const RefreshToken = require("../models/refreshToken");
 const PasswordResetToken = require("../models/passwordResetToken");
 const { hashPassword, comparePassword } = require("../utils/password");
@@ -9,15 +10,19 @@ const {
   generateRefreshTokenFamilyId,
   generatePasswordResetToken,
   hashPasswordResetToken,
+  generateEmailVerificationToken,
+  hashEmailVerificationToken,
 } = require("../utils/crypto");
 
 const { createAccessToken } = require("../utils/jwt");
 const createError = require("../utils/createError");
 const mongoose = require("mongoose");
+const { sendEmailVerificationEmail } = require("./emailService");
 
 // Constants
 const REFRESH_TOKEN_EXPIRES_IN_MS = 7 * 24 * 60 * 60 * 1000;
 const PASSWORD_RESET_EXPIRES_IN_MS = 15 * 60 * 1000; // 15mint
+const EMAIL_VERIFICATION_EXPIRES_IN_MS = 24 * 60 * 60 * 1000; // 24hours
 
 const registerUser = async ({
   name,
@@ -55,6 +60,23 @@ const registerUser = async ({
     name: name.trim(),
     email: normalizedEmail,
     password: hashedPassword,
+  });
+
+  //  Email Verification Token
+  const verificationToken = generateEmailVerificationToken();
+
+  const verificationTokenHash = hashEmailVerificationToken(verificationToken);
+
+  await EmailVerificationToken.create({
+    user: user._id,
+    tokenHash: verificationTokenHash,
+    expiresAt: new Date(Date.now() + EMAIL_VERIFICATION_EXPIRES_IN_MS),
+  });
+
+  await sendEmailVerificationEmail({
+    email: user.email,
+    name: user.name,
+    verificationToken,
   });
 
   /*
@@ -446,7 +468,7 @@ const changePasswordService = async ({
   newPassword,
 }) => {
   const user = await User.findById(userId).select("+password");
-  
+
   if (!user) {
     throw createError(401, "User not found");
   }
@@ -483,6 +505,51 @@ const changePasswordService = async ({
   );
 };
 
+// Verify Email
+const verifyEmail = async (token) => {
+  if (!token) {
+    throw createError(400, "Verification token is required");
+  }
+
+  const tokenHash = hashEmailVerificationToken(token);
+
+  const verificationToken = await EmailVerificationToken.findOne({
+    tokenHash,
+    verifiedAt: null,
+    expiresAt: {
+      $gt: new Date(),
+    },
+  });
+
+  if (!verificationToken) {
+    throw createError(400, "Invalid or expired verification token");
+  }
+
+  const user = await User.findById(verificationToken.user);
+
+  if (!user) {
+    throw createError(400, "Invalid verification token");
+  }
+
+  if (user.isEmailVerified) {
+    verificationToken.verifiedAt = new Date();
+
+    await verificationToken.save();
+
+    return;
+  }
+
+  user.isEmailVerified = true;
+
+  await user.save({
+    validateBeforeSave: false,
+  });
+
+  verificationToken.verifiedAt = new Date();
+
+  await verificationToken.save();
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -492,4 +559,5 @@ module.exports = {
   forgotPasswordService,
   resetPasswordService,
   changePasswordService,
+  verifyEmail,
 };
