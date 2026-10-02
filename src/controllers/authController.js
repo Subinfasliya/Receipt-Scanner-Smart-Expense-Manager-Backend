@@ -8,6 +8,7 @@ const {
   resetPasswordService,
   changePasswordService,
   verifyEmail,
+  resendVerificationEmail,
 } = require("../services/authService");
 const { sendPasswordResetEmail } = require("../services/emailService");
 const { successResponse } = require("../utils/apiResponse");
@@ -204,19 +205,24 @@ const changePassword = async (req, res, next) => {
   }
 };
 
-
-const verifyEmailController = async (
-  req,
-  res,
-  next
-) => {
+const verifyEmailController = async (req, res, next) => {
   try {
     await verifyEmail(req.params.token);
 
-    return successResponse(
+    return successResponse(res, 200, "Email verified successfully");
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Resend email verification
+const resendVerificationEmailController = async (req, res, next) => {
+  try {
+    await resendVerificationEmail({ email: req.body.email });
+    /* * Same response whether the email * exists or not. * * This prevents account enumeration. */ return successResponse(
       res,
       200,
-      "Email verified successfully"
+      "If an account exists for this email, a verification email has been sent.",
     );
   } catch (error) {
     next(error);
@@ -233,5 +239,6 @@ module.exports = {
   forgotPassword,
   resetPassword,
   changePassword,
-  verifyEmailController
+  verifyEmailController,
+  resendVerificationEmailController,
 };

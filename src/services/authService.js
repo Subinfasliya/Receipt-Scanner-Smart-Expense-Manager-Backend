@@ -504,6 +504,7 @@ const changePasswordService = async ({
     { $set: { revokedAt: new Date() } },
   );
 };
+//-----------------------------------------------------------------------------
 
 // Verify Email
 const verifyEmail = async (token) => {
@@ -550,6 +551,74 @@ const verifyEmail = async (token) => {
   await verificationToken.save();
 };
 
+//---------------------------------------------------------------------
+
+const resendVerificationEmail = async ({ email }) => {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const user = await User.findOne({
+    email: normalizedEmail,
+  });
+
+  /*
+   * Do not reveal whether the email
+   * exists in our system.
+   */
+  if (!user) {
+    return;
+  }
+
+  /*
+   * If already verified, do nothing.
+   */
+  if (user.isEmailVerified) {
+    return;
+  }
+
+  /*
+   * Invalidate previous verification tokens.
+   */
+  await EmailVerificationToken.updateMany(
+    {
+      user: user._id,
+      verifiedAt: null,
+    },
+    {
+      $set: {
+        verifiedAt: new Date(),
+      },
+    },
+  );
+
+  /*
+   * Generate new token.
+   */
+  const verificationToken = generateEmailVerificationToken();
+
+  /*
+   * Hash token before storing.
+   */
+  const tokenHash = hashEmailVerificationToken(verificationToken);
+
+  /*
+   * Save new verification token.
+   */
+  await EmailVerificationToken.create({
+    user: user._id,
+    tokenHash,
+    expiresAt: new Date(Date.now() + EMAIL_VERIFICATION_EXPIRES_IN_MS),
+  });
+
+  /*
+   * Send raw token through email.
+   */
+  await sendEmailVerificationEmail({
+    email: user.email,
+    name: user.name,
+    verificationToken,
+  });
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -560,4 +629,5 @@ module.exports = {
   resetPasswordService,
   changePasswordService,
   verifyEmail,
+  resendVerificationEmail,
 };

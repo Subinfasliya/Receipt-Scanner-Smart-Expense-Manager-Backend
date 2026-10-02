@@ -9,6 +9,7 @@ const {
   resetPassword,
   changePassword,
   verifyEmailController,
+  resendVerificationEmailController,
 } = require("../../controllers/authController");
 const { protect } = require("../../middlewares/auth/authMiddleware");
 const validate = require("../../middlewares/validate");
@@ -22,6 +23,9 @@ const {
 
 const authRouter = require("express").Router();
 
+//---------------------------------------------------------------------------
+// AUTHENTICATION
+//--------------------------------------------------------------------------
 authRouter.post("/register", validate(registerSchema), register);
 
 authRouter.post("/login", validate(loginSchema), login);
@@ -30,9 +34,17 @@ authRouter.post("/refresh", refresh);
 
 authRouter.get("/me", protect, getMe);
 
+//------------------------------------------------------------------------
+// SESSION
+//------------------------------------------------------------------------
+
 authRouter.post("/logout", logout);
 
 authRouter.post("/logout-all", protect, logoutAll);
+
+// ----------------------------------------------------------------------
+// PASSWORD
+// ----------------------------------------------------------------------
 
 authRouter.post(
   "/forgot-password",
@@ -53,6 +65,12 @@ authRouter.post(
   changePassword,
 );
 
+// ---------------------------------------------------------------------------
+//  EMAIL VERIFICATION
+// ---------------------------------------------------------------------------
+
 authRouter.get("/verify-email/:token", verifyEmailController);
+
+authRouter.post("/resend-verification", resendVerificationEmailController);
 
 module.exports = authRouter;

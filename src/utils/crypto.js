@@ -41,8 +41,10 @@ module.exports = {
   generateRefreshToken,
   hashRefreshToken,
   generateRefreshTokenFamilyId,
+
   generatePasswordResetToken,
   hashPasswordResetToken,
+
   generateEmailVerificationToken,
   hashEmailVerificationToken,
 };

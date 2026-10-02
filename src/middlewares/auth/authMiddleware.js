@@ -2,7 +2,6 @@ const User = require("../../models/userModel");
 const createError = require("../../utils/createError");
 const { verifyAccessToken } = require("../../utils/jwt");
 
-
 const protect = async (req, res, next) => {
   try {
     //  Read Authorization header
@@ -41,6 +40,20 @@ const protect = async (req, res, next) => {
       throw createError(403, "Your account is inactive");
     }
 
+    // ==========================================
+    //  PASSWORD CHANGE INVALIDATION
+    // ==========================================
+    if (user.passwordChangedAt && decoded.iat) {
+      const passwordChangedAtSeconds = Math.floor(
+        user.passwordChangedAt.getTime() / 1000,
+      );
+      if (decoded.iat < passwordChangedAtSeconds) {
+        throw createError(
+          401,
+          "Access token is no longer valid. Please login again.",
+        );
+      }
+    }
     //  Attach user to request
     req.user = user;
 

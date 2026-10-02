@@ -12,6 +12,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// Password Reset Email 
 const sendPasswordResetEmail = async ({ email, name, resetToken }) => {
   const resetUrl = `${env.clientUrl}/reset-password/${resetToken}`;
 
@@ -85,6 +86,7 @@ ScanSpend Team
   });
 };
 
+// Email verification
 const sendEmailVerificationEmail = async ({
   email,
   name,
