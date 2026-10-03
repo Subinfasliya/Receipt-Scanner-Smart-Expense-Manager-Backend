@@ -11,7 +11,7 @@ const {
   verifyEmailController,
   resendVerificationEmailController,
 } = require("../../controllers/authController");
-const { protect } = require("../../middlewares/auth/authMiddleware");
+const protect  = require("../../middlewares/auth/authMiddleware");
 const validate = require("../../middlewares/validate");
 const {
   registerSchema,
