@@ -27,10 +27,24 @@ const hashPasswordResetToken = (token) => {
   return crypto.createHash("sha256").update(token).digest("hex");
 };
 
+// Email Verification Token
+const generateEmailVerificationToken = () => {
+  return crypto.randomBytes(32).toString("hex");
+};
+
+// Hash Email Verification Token
+const hashEmailVerificationToken = (token) => {
+  return crypto.createHash("sha256").update(token).digest("hex");
+};
+
 module.exports = {
   generateRefreshToken,
   hashRefreshToken,
   generateRefreshTokenFamilyId,
+
   generatePasswordResetToken,
   hashPasswordResetToken,
+
+  generateEmailVerificationToken,
+  hashEmailVerificationToken,
 };
