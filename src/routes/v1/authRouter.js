@@ -13,6 +13,8 @@ const {
 } = require("../../controllers/authController");
 const protect  = require("../../middlewares/auth/authMiddleware");
 const validate = require("../../middlewares/validate");
+const trustedOrigin = require("../../middlewares/auth/trustedOrigin");
+const rateLimit = require("express-rate-limit");
 const {
   registerSchema,
   loginSchema,
@@ -22,15 +24,25 @@ const {
 } = require("../../middlewares/validations/authValidation");
 
 const authRouter = require("express").Router();
+const createAuthLimiter = (limit) => rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+const loginLimiter = createAuthLimiter(10);
+const registrationLimiter = createAuthLimiter(5);
+const recoveryLimiter = createAuthLimiter(5);
+const refreshLimiter = createAuthLimiter(20);
 
 //---------------------------------------------------------------------------
 // AUTHENTICATION
 //--------------------------------------------------------------------------
-authRouter.post("/register", validate(registerSchema), register);
+authRouter.post("/register", registrationLimiter, validate(registerSchema), register);
 
-authRouter.post("/login", validate(loginSchema), login);
+authRouter.post("/login", loginLimiter, validate(loginSchema), login);
 
-authRouter.post("/refresh", refresh);
+authRouter.post("/refresh", refreshLimiter, trustedOrigin, refresh);
 
 authRouter.get("/me", protect, getMe);
 
@@ -38,7 +50,7 @@ authRouter.get("/me", protect, getMe);
 // SESSION
 //------------------------------------------------------------------------
 
-authRouter.post("/logout", logout);
+authRouter.post("/logout", trustedOrigin, logout);
 
 authRouter.post("/logout-all", protect, logoutAll);
 
@@ -48,12 +60,14 @@ authRouter.post("/logout-all", protect, logoutAll);
 
 authRouter.post(
   "/forgot-password",
+  recoveryLimiter,
   validate(forgotPasswordSchema),
   forgotPassword,
 );
 
 authRouter.post(
   "/reset-password",
+  recoveryLimiter,
   validate(resetPasswordSchema),
   resetPassword,
 );
@@ -69,8 +83,8 @@ authRouter.post(
 //  EMAIL VERIFICATION
 // ---------------------------------------------------------------------------
 
-authRouter.get("/verify-email/:token", verifyEmailController);
+authRouter.get("/verify-email/:token", recoveryLimiter, verifyEmailController);
 
-authRouter.post("/resend-verification", resendVerificationEmailController);
+authRouter.post("/resend-verification", recoveryLimiter, trustedOrigin, resendVerificationEmailController);
 
 module.exports = authRouter;

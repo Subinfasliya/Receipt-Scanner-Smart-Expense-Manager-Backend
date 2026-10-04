@@ -7,7 +7,7 @@ const getRefreshTokenCookieOptions = {
   secure: isProduction,
   sameSite: isProduction ? "none" : "lax",
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7days
-  path: "/",
+  path: "/api/v1/auth",
 };
 
 const setRefreshCookie  = (res, refreshToken) => {

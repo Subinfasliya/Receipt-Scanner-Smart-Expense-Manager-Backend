@@ -292,7 +292,7 @@ const refreshAccessToken = async ({
               replacedByTokenHash: newRefreshTokenHash,
             },
           },
-          { new: true, session },
+          { returnDocument: "after", session },
         );
 
         /*  Atomic update failed */

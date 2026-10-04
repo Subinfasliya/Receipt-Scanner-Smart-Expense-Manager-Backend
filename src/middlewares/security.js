@@ -5,10 +5,11 @@ const cookieParser = require('cookie-parser')
 const mongoSanitize = require("express-mongo-sanitize");
 const express = require("express");
 const env = require("../config/env");
+const createError = require("../utils/createError");
 
 const configureSecurityMiddleware = (app) => {
   // Trust Proxy (Required when hosted behind proxies like Render, AWS ALB, Nginx, Cloudflare)
-  app.set("trust-proxy", env.trustProxy || 1);
+  app.set("trust proxy", env.trustProxy);
 
   // Disable x-powered-by header (prevents leaking server framework details)
   app.disable("x-powered-by");
@@ -19,8 +20,8 @@ const configureSecurityMiddleware = (app) => {
   // CORS: Restrict API access to trusted origins only
   const corsOptions = {
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, or Postman) in non-production
-      if (!origin && env.nodeEnv !== "production") {
+      // CORS only governs browser origins; signed service-to-service calls have no Origin.
+      if (!origin) {
         return callback(null, true);
       }
 
@@ -28,10 +29,7 @@ const configureSecurityMiddleware = (app) => {
         return callback(null, true);
       }
 
-      return callback(
-        new Error("CORS Policy Error: Origin not allowed"),
-        false,
-      );
+      return callback(createError(403, "CORS policy rejected this origin"), false);
     },
     credentials: true, // Allows HttpOnly cookies to be sent across origins
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -41,7 +39,12 @@ const configureSecurityMiddleware = (app) => {
   app.use(cors(corsOptions));
 
   //   Request Size Limits: Mitigate Payload Denial of Service attacks
-  app.use(express.json({ limit: "10kb" })); // Prevents large JSON payload floods
+  app.use(express.json({
+    limit: "10kb",
+    verify: (req, res, buffer) => {
+      req.rawBody = Buffer.from(buffer);
+    },
+  }));
   app.use(express.urlencoded({ extended: true, limit: "1mb" })); // Limits URL-encoded form data
 
   // Cookie Parser: Securely parse incoming cookie headers (used for HttpOnly refresh tokens)
