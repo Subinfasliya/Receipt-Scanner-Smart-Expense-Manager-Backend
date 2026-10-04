@@ -37,7 +37,7 @@ const handleUpload = (req, res, next) => {
 
 const expenseFromReceiptSchema = Joi.object({
   merchant: Joi.string().trim().min(1).max(120),
-  amount: Joi.number().positive().precision(2),
+  amount: Joi.number().positive().max(100000000).precision(2),
   category: Joi.string().trim().max(80).allow("", null),
   expenseDate: Joi.date().max("now"),
 }).min(1);

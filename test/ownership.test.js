@@ -6,7 +6,7 @@ const Expense = require("../src/models/expenseModel");
 
 test("expense schema requires a user owner", () => {
   assert.equal(Expense.schema.path("userId").isRequired, true);
-  assert.equal(Expense.schema.path("amount").options.min, 0);
+  assert.equal(Expense.schema.path("amountMinor").options.min, 0);
 });
 
 test("ownership middleware exposes only resources belonging to the user", async () => {

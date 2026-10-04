@@ -19,7 +19,7 @@ const receiptSchema = new mongoose.Schema(
     bytes: { type: Number, required: true, max: 5 * 1024 * 1024 },
     extracted: {
       merchant: { type: String, maxlength: 120 },
-      amount: { type: Number, min: 0 },
+      amountMinor: { type: Number, min: 0, max: 10000000000 },
       expenseDate: { type: Date },
     },
   },

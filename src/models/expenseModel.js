@@ -15,10 +15,11 @@ const expenseSchema = new mongoose.Schema(
       trim: true,
     },
 
-    amount: {
+    amountMinor: {
       type: Number,
       required: true,
       min: 0,
+      max: 10000000000,
     },
 
     category: {

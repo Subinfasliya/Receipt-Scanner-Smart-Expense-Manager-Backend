@@ -1,11 +1,17 @@
 const Expense = require("../models/expenseModel");
 const createError = require("../utils/createError");
 const { successResponse } = require("../utils/apiResponse");
+const { toMinorUnits, serializeExpense } = require("../utils/money");
 
 const createExpense = async (req, res, next) => {
   try {
-    const expense = await Expense.create({ ...req.body, userId: req.user._id });
-    return successResponse(res, 201, "Expense created successfully", expense);
+    const { amount, ...fields } = req.body;
+    const expense = await Expense.create({
+      ...fields,
+      amountMinor: toMinorUnits(amount),
+      userId: req.user._id,
+    });
+    return successResponse(res, 201, "Expense created successfully", serializeExpense(expense));
   } catch (error) {
     return next(error);
   }
@@ -24,7 +30,7 @@ const listExpenses = async (req, res, next) => {
     }
     if (req.query.category) filter.category = req.query.category;
 
-    const [items, total] = await Promise.all([
+    const [documents, total] = await Promise.all([
       Expense.find(filter)
         .sort({ expenseDate: -1, _id: -1 })
         .skip((page - 1) * limit)
@@ -34,7 +40,7 @@ const listExpenses = async (req, res, next) => {
     ]);
 
     return successResponse(res, 200, "Expenses retrieved successfully", {
-      items,
+      items: documents.map(serializeExpense),
       page,
       limit,
       total,
@@ -46,14 +52,16 @@ const listExpenses = async (req, res, next) => {
 };
 
 const getExpense = async (req, res, next) => {
-  return successResponse(res, 200, "Expense retrieved successfully", req.resource);
+  return successResponse(res, 200, "Expense retrieved successfully", serializeExpense(req.resource));
 };
 
 const updateExpense = async (req, res, next) => {
   try {
-    Object.assign(req.resource, req.body);
+    const { amount, ...fields } = req.body;
+    Object.assign(req.resource, fields);
+    if (amount !== undefined) req.resource.amountMinor = toMinorUnits(amount);
     await req.resource.save();
-    return successResponse(res, 200, "Expense updated successfully", req.resource);
+    return successResponse(res, 200, "Expense updated successfully", serializeExpense(req.resource));
   } catch (error) {
     return next(error);
   }

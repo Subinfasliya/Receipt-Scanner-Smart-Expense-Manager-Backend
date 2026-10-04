@@ -2,6 +2,7 @@ const Receipt = require("../models/receiptModel");
 const Expense = require("../models/expenseModel");
 const createError = require("../utils/createError");
 const { successResponse } = require("../utils/apiResponse");
+const { toMinorUnits, serializeExpense, serializeReceipt } = require("../utils/money");
 const {
   uploadReceiptImage,
   recognizeReceipt,
@@ -30,7 +31,7 @@ const createReceipt = async (req, res, next) => {
       bytes: upload.bytes,
       extracted: ocr.extracted,
     });
-    return successResponse(res, 201, "Receipt uploaded and scanned", receipt);
+    return successResponse(res, 201, "Receipt uploaded and scanned", serializeReceipt(receipt));
   } catch (error) {
     if (upload?.public_id) {
       await deleteReceiptImage(upload.public_id).catch(() => {});
@@ -41,10 +42,10 @@ const createReceipt = async (req, res, next) => {
 
 const listReceipts = async (req, res, next) => {
   try {
-    const receipts = await Receipt.find({ userId: req.user._id })
+    const receipts = (await Receipt.find({ userId: req.user._id })
       .sort({ createdAt: -1 })
       .limit(100)
-      .lean();
+      .lean()).map(serializeReceipt);
     return successResponse(res, 200, "Receipts retrieved successfully", receipts);
   } catch (error) {
     return next(error);
@@ -52,7 +53,7 @@ const listReceipts = async (req, res, next) => {
 };
 
 const getReceipt = (req, res) =>
-  successResponse(res, 200, "Receipt retrieved successfully", req.resource);
+  successResponse(res, 200, "Receipt retrieved successfully", serializeReceipt(req.resource));
 
 const deleteReceipt = async (req, res, next) => {
   try {
@@ -68,15 +69,19 @@ const createExpenseFromReceipt = async (req, res, next) => {
   try {
     const receipt = req.resource;
     if (receipt.expenseId) throw createError(409, "Receipt is already linked to an expense");
-    const amount = req.body.amount ?? receipt.extracted.amount;
-    if (!amount) throw createError(422, "Provide the expense amount because OCR could not identify it");
+    const amountMinor = req.body.amount !== undefined
+      ? toMinorUnits(req.body.amount)
+      : receipt.extracted.amountMinor;
+    if (!Number.isSafeInteger(amountMinor) || amountMinor < 1) {
+      throw createError(422, "Provide the expense amount because OCR could not identify it");
+    }
     const idempotencyKey = `receipt:${receipt._id}`;
     let expense;
     try {
       expense = await Expense.create({
         userId: req.user._id,
         merchant: req.body.merchant || receipt.extracted.merchant || "Receipt purchase",
-        amount,
+        amountMinor,
         category: req.body.category,
         expenseDate: req.body.expenseDate || receipt.extracted.expenseDate || new Date(),
         idempotencyKey,
@@ -88,7 +93,7 @@ const createExpenseFromReceipt = async (req, res, next) => {
     }
     receipt.expenseId = expense._id;
     await receipt.save();
-    return successResponse(res, 201, "Expense created from receipt", expense);
+    return successResponse(res, 201, "Expense created from receipt", serializeExpense(expense));
   } catch (error) {
     return next(error);
   }

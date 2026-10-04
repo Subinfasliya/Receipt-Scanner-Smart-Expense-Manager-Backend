@@ -3,6 +3,7 @@ const cloudinary = require("cloudinary").v2;
 const { createWorker } = require("tesseract.js");
 const env = require("../config/env");
 const createError = require("../utils/createError");
+const { toMinorUnits } = require("../utils/money");
 
 let workerPromise;
 
@@ -43,7 +44,9 @@ const recognizeReceipt = async (buffer) => {
   const text = result.data.text.slice(0, 20000).trim();
   const merchant = text.split(/\r?\n/).map((line) => line.trim()).find(Boolean)?.slice(0, 120);
   const totalMatch = text.match(/(?:grand\s+total|amount\s+due|total)\D{0,24}([0-9,]+(?:\.\d{1,2})?)/i);
-  const amount = totalMatch ? Number(totalMatch[1].replaceAll(",", "")) : undefined;
+  const amountMinor = totalMatch
+    ? toMinorUnits(totalMatch[1].replaceAll(",", ""))
+    : undefined;
   const dateMatch = text.match(/\b(20\d{2})[-/](0?[1-9]|1[0-2])[-/](0?[1-9]|[12]\d|3[01])\b/);
   const expenseDate = dateMatch
     ? new Date(`${dateMatch[1]}-${dateMatch[2].padStart(2, "0")}-${dateMatch[3].padStart(2, "0")}T00:00:00.000Z`)
@@ -52,7 +55,7 @@ const recognizeReceipt = async (buffer) => {
   return {
     extracted: {
       ...(merchant ? { merchant } : {}),
-      ...(Number.isFinite(amount) && amount > 0 ? { amount } : {}),
+      ...(Number.isSafeInteger(amountMinor) && amountMinor > 0 ? { amountMinor } : {}),
       ...(expenseDate && !Number.isNaN(expenseDate.getTime()) ? { expenseDate } : {}),
     },
   };

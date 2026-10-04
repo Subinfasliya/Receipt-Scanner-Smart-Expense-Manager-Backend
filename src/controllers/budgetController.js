@@ -2,6 +2,7 @@ const Budget = require("../models/budgetModel");
 const Expense = require("../models/expenseModel");
 const { successResponse } = require("../utils/apiResponse");
 const createError = require("../utils/createError");
+const { toMinorUnits, fromMinorUnits } = require("../utils/money");
 
 const getBudgets = async (req, res, next) => {
   try {
@@ -15,13 +16,21 @@ const getBudgets = async (req, res, next) => {
       Budget.find({ userId: req.user._id, year, month }).sort({ category: 1 }).lean(),
       Expense.aggregate([
         { $match: { userId: req.user._id, expenseDate: { $gte: new Date(Date.UTC(year, month - 1, 1)), $lt: new Date(Date.UTC(year, month, 1)) } } },
-        { $group: { _id: "$category", amount: { $sum: "$amount" } } },
+        { $group: { _id: "$category", amountMinor: { $sum: "$amountMinor" } } },
       ]),
     ]);
-    const spentByCategory = new Map(spend.map((item) => [item._id || "Uncategorized", item.amount]));
+    const spentByCategory = new Map(spend.map((item) => [item._id || "Uncategorized", item.amountMinor]));
     const result = budgets.map((budget) => {
-      const spent = spentByCategory.get(budget.category) || 0;
-      return { ...budget, spent, remaining: Math.max(0, budget.limit - spent), percentUsed: Math.round((spent / budget.limit) * 100) };
+      const spentMinor = spentByCategory.get(budget.category) || 0;
+      const remainingMinor = Math.max(0, budget.limitMinor - spentMinor);
+      const { limitMinor, ...fields } = budget;
+      return {
+        ...fields,
+        limit: fromMinorUnits(limitMinor),
+        spent: fromMinorUnits(spentMinor),
+        remaining: fromMinorUnits(remainingMinor),
+        percentUsed: Math.round((spentMinor / limitMinor) * 100),
+      };
     });
     return successResponse(res, 200, "Budgets retrieved successfully", { year, month, items: result });
   } catch (error) {
@@ -36,10 +45,14 @@ const upsertBudget = async (req, res, next) => {
     const month = req.body.month || now.getUTCMonth() + 1;
     const budget = await Budget.findOneAndUpdate(
       { userId: req.user._id, category: req.body.category, year, month },
-      { $set: { limit: req.body.limit } },
+      { $set: { limitMinor: toMinorUnits(req.body.limit) } },
       { returnDocument: "after", upsert: true, runValidators: true, setDefaultsOnInsert: true },
     );
-    return successResponse(res, 200, "Budget saved successfully", budget);
+    const { limitMinor, ...fields } = budget.toObject();
+    return successResponse(res, 200, "Budget saved successfully", {
+      ...fields,
+      limit: fromMinorUnits(limitMinor),
+    });
   } catch (error) {
     return next(error);
   }

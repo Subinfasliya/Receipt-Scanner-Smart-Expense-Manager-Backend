@@ -6,7 +6,7 @@ const budgetSchema = new mongoose.Schema(
     category: { type: String, required: true, trim: true, maxlength: 80 },
     year: { type: Number, required: true, min: 2000, max: 2200 },
     month: { type: Number, required: true, min: 1, max: 12 },
-    limit: { type: Number, required: true, min: 0.01, max: 100000000 },
+    limitMinor: { type: Number, required: true, min: 1, max: 10000000000 },
   },
   { timestamps: true },
 );

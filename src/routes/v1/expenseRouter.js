@@ -20,7 +20,7 @@ const expenseRouter = require("express").Router();
 
 const expenseSchema = Joi.object({
   merchant: Joi.string().trim().min(1).max(120).required(),
-  amount: Joi.number().positive().precision(2).required(),
+  amount: Joi.number().positive().max(100000000).precision(2).required(),
   category: Joi.string().trim().max(80).allow("", null),
   expenseDate: Joi.date().max("now").required(),
   notes: Joi.string().trim().max(1000).allow("", null),

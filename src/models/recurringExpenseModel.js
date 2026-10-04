@@ -4,7 +4,7 @@ const recurringExpenseSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
     merchant: { type: String, required: true, trim: true, maxlength: 120 },
-    amount: { type: Number, required: true, min: 0.01, max: 100000000 },
+    amountMinor: { type: Number, required: true, min: 1, max: 10000000000 },
     category: { type: String, trim: true, maxlength: 80 },
     frequency: { type: String, enum: ["weekly", "monthly", "yearly"], required: true },
     nextRunAt: { type: Date, required: true, index: true },

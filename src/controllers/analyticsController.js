@@ -1,6 +1,7 @@
 const Expense = require("../models/expenseModel");
 const { successResponse } = require("../utils/apiResponse");
 const { generateInsights } = require("../services/insightService");
+const { fromMinorUnits } = require("../utils/money");
 
 const buildRange = (req) => {
   const to = req.query.to ? new Date(req.query.to) : new Date();
@@ -18,18 +19,26 @@ const aggregateSpending = async (userId, from, to) => {
     { $match: { userId, expenseDate: { $gte: from, $lte: to } } },
     {
       $facet: {
-        totals: [{ $group: { _id: null, amount: { $sum: "$amount" }, count: { $sum: 1 } } }],
-        categories: [{ $group: { _id: { $ifNull: ["$category", "Uncategorized"] }, amount: { $sum: "$amount" }, count: { $sum: 1 } } }, { $sort: { amount: -1 } }],
-        months: [{ $group: { _id: { $dateToString: { format: "%Y-%m", date: "$expenseDate" } }, amount: { $sum: "$amount" }, count: { $sum: 1 } } }, { $sort: { _id: 1 } }],
+        totals: [{ $group: { _id: null, amountMinor: { $sum: "$amountMinor" }, count: { $sum: 1 } } }],
+        categories: [{ $group: { _id: { $ifNull: ["$category", "Uncategorized"] }, amountMinor: { $sum: "$amountMinor" }, count: { $sum: 1 } } }, { $sort: { amountMinor: -1 } }],
+        months: [{ $group: { _id: { $dateToString: { format: "%Y-%m", date: "$expenseDate" } }, amountMinor: { $sum: "$amountMinor" }, count: { $sum: 1 } } }, { $sort: { _id: 1 } }],
       },
     },
   ]);
   const result = results[0] || { totals: [], categories: [], months: [] };
   return {
-    total: result.totals[0]?.amount || 0,
+    total: fromMinorUnits(result.totals[0]?.amountMinor || 0),
     count: result.totals[0]?.count || 0,
-    categories: result.categories.map(({ _id, ...item }) => ({ category: _id, ...item })),
-    months: result.months.map(({ _id, ...item }) => ({ month: _id, ...item })),
+    categories: result.categories.map(({ _id, amountMinor, count }) => ({
+      category: _id,
+      amount: fromMinorUnits(amountMinor),
+      count,
+    })),
+    months: result.months.map(({ _id, amountMinor, count }) => ({
+      month: _id,
+      amount: fromMinorUnits(amountMinor),
+      count,
+    })),
   };
 };
 
@@ -47,7 +56,7 @@ const exportExpenses = async (req, res, next) => {
   try {
     const { from, to } = buildRange(req);
     const expenses = await Expense.find({ userId: req.user._id, expenseDate: { $gte: from, $lte: to } })
-      .select("merchant amount category expenseDate notes")
+      .select("merchant amountMinor category expenseDate notes")
       .sort({ expenseDate: 1 })
       .limit(50000)
       .lean();
@@ -58,7 +67,7 @@ const exportExpenses = async (req, res, next) => {
     };
     const lines = [
       ["date", "merchant", "amount", "category", "notes"].map(safeCell).join(","),
-      ...expenses.map((item) => [item.expenseDate.toISOString(), item.merchant, item.amount, item.category, item.notes].map(safeCell).join(",")),
+      ...expenses.map((item) => [item.expenseDate.toISOString(), item.merchant, fromMinorUnits(item.amountMinor), item.category, item.notes].map(safeCell).join(",")),
     ];
     res.set({
       "Content-Type": "text/csv; charset=utf-8",
@@ -77,15 +86,18 @@ const insights = async (req, res, next) => {
     const currentFrom = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const previousFrom = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
     const [current, previous, categories, months] = await Promise.all([
-      Expense.aggregate([{ $match: { userId: req.user._id, expenseDate: { $gte: currentFrom, $lte: now } } }, { $group: { _id: null, amount: { $sum: "$amount" } } }]),
-      Expense.aggregate([{ $match: { userId: req.user._id, expenseDate: { $gte: previousFrom, $lt: currentFrom } } }, { $group: { _id: null, amount: { $sum: "$amount" } } }]),
-      Expense.aggregate([{ $match: { userId: req.user._id, expenseDate: { $gte: currentFrom, $lte: now } } }, { $group: { _id: { $ifNull: ["$category", "Uncategorized"] }, amount: { $sum: "$amount" } } }, { $sort: { amount: -1 } }, { $limit: 10 }]),
-      Expense.aggregate([{ $match: { userId: req.user._id, expenseDate: { $gte: previousFrom, $lte: now } } }, { $group: { _id: { $dateToString: { format: "%Y-%m", date: "$expenseDate" } }, amount: { $sum: "$amount" } } }, { $sort: { _id: 1 } }]),
+      Expense.aggregate([{ $match: { userId: req.user._id, expenseDate: { $gte: currentFrom, $lte: now } } }, { $group: { _id: null, amountMinor: { $sum: "$amountMinor" } } }]),
+      Expense.aggregate([{ $match: { userId: req.user._id, expenseDate: { $gte: previousFrom, $lt: currentFrom } } }, { $group: { _id: null, amountMinor: { $sum: "$amountMinor" } } }]),
+      Expense.aggregate([{ $match: { userId: req.user._id, expenseDate: { $gte: currentFrom, $lte: now } } }, { $group: { _id: { $ifNull: ["$category", "Uncategorized"] }, amountMinor: { $sum: "$amountMinor" } } }, { $sort: { amountMinor: -1 } }, { $limit: 10 }]),
+      Expense.aggregate([{ $match: { userId: req.user._id, expenseDate: { $gte: previousFrom, $lte: now } } }, { $group: { _id: { $dateToString: { format: "%Y-%m", date: "$expenseDate" } }, amountMinor: { $sum: "$amountMinor" } } }, { $sort: { _id: 1 } }]),
     ]);
     const data = {
-      totals: { currentPeriod: current[0]?.amount || 0, previousPeriod: previous[0]?.amount || 0 },
-      categories: categories.map(({ _id, amount }) => ({ category: _id, amount })),
-      months: months.map(({ _id, amount }) => ({ month: _id, amount })),
+      totals: {
+        currentPeriod: fromMinorUnits(current[0]?.amountMinor || 0),
+        previousPeriod: fromMinorUnits(previous[0]?.amountMinor || 0),
+      },
+      categories: categories.map(({ _id, amountMinor }) => ({ category: _id, amount: fromMinorUnits(amountMinor) })),
+      months: months.map(({ _id, amountMinor }) => ({ month: _id, amount: fromMinorUnits(amountMinor) })),
     };
     const result = await generateInsights(data);
     return successResponse(res, 200, "Spending insights generated", result);

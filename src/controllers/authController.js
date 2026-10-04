@@ -124,7 +124,7 @@ const logout = async (req, res, next) => {
 // Logout All Devices
 const logoutAll = async (req, res, next) => {
   try {
-    await logoutAllUserSessions(req.user_id);
+    await logoutAllUserSessions(req.user._id);
 
     //clear the current browser's refresh cookie
     clearRefreshCookie(res);

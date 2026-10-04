@@ -1,4 +1,5 @@
 const Razorpay = require("razorpay");
+const mongoose = require("mongoose");
 const Subscription = require("../models/subscriptionModel");
 const User = require("../models/userModel");
 const env = require("../config/env");
@@ -60,36 +61,62 @@ const getSubscription = async (req, res, next) => {
 };
 
 const processPaymentCaptured = async ({ orderId, paymentId, amount, currency }) => {
-  const subscription = await Subscription.findOne({ orderId, status: "pending" });
-  if (!subscription) return;
-  if (subscription.amount !== amount || subscription.currency !== currency) {
-    throw createError(400, "Payment amount or currency does not match the order");
-  }
-  const user = await User.findById(subscription.userId);
-  if (!user || !user.isActive) throw createError(404, "Subscription user not found");
+  const session = await mongoose.startSession();
+  try {
+    await session.withTransaction(async () => {
+      const subscription = await Subscription.findOne({ orderId }).session(session);
+      if (!subscription) return;
+      if (subscription.amount !== amount || subscription.currency !== currency) {
+        throw createError(400, "Payment amount or currency does not match the order");
+      }
 
-  const now = new Date();
-  const startsAt = user.isPremium && user.premiumExpiresAt > now ? user.premiumExpiresAt : now;
-  const expiresAt = new Date(startsAt);
+      const alreadyActivated = subscription.status === "active";
+      if (alreadyActivated && subscription.paymentId !== paymentId) {
+        throw createError(409, "Subscription was activated by a different payment");
+      }
+      if (!alreadyActivated && !["pending", "failed"].includes(subscription.status)) return;
+
+      const user = await User.findById(subscription.userId).session(session);
+      if (!user || !user.isActive) throw createError(404, "Subscription user not found");
+
+      const now = new Date();
+      if (!alreadyActivated) {
+        const startsAt = user.premiumExpiresAt > now ? user.premiumExpiresAt : now;
+        const expiresAt = calculateExpiry(startsAt, subscription.plan);
+        subscription.status = "active";
+        subscription.paymentId = paymentId;
+        subscription.startsAt = startsAt;
+        subscription.expiresAt = expiresAt;
+        await subscription.save({ session });
+      }
+
+      const currentExpiry = user.premiumExpiresAt > now ? user.premiumExpiresAt : null;
+      const subscriptionExpiry = subscription.expiresAt;
+      const effectiveExpiry = currentExpiry && currentExpiry > subscriptionExpiry
+        ? currentExpiry
+        : subscriptionExpiry;
+      user.isPremium = effectiveExpiry > now;
+      user.premiumExpiresAt = effectiveExpiry;
+      if (!currentExpiry || subscriptionExpiry >= currentExpiry) {
+        user.subscriptionPlan = subscription.plan;
+      }
+      await user.save({ session, validateBeforeSave: false });
+    });
+  } finally {
+    await session.endSession();
+  }
+};
+
+const calculateExpiry = (start, plan) => {
+  const expiresAt = new Date(start);
   const day = expiresAt.getUTCDate();
   const month = expiresAt.getUTCMonth();
   expiresAt.setUTCDate(1);
-  if (subscription.plan === "monthly") expiresAt.setUTCMonth(month + 1);
-  else {
-    expiresAt.setUTCFullYear(expiresAt.getUTCFullYear() + 1);
-    expiresAt.setUTCMonth(month);
-  }
+  if (plan === "monthly") expiresAt.setUTCMonth(month + 1);
+  else expiresAt.setUTCFullYear(expiresAt.getUTCFullYear() + 1);
   const finalDay = new Date(Date.UTC(expiresAt.getUTCFullYear(), expiresAt.getUTCMonth() + 1, 0)).getUTCDate();
   expiresAt.setUTCDate(Math.min(day, finalDay));
-
-  subscription.status = "active";
-  subscription.paymentId = paymentId;
-  subscription.startsAt = startsAt;
-  subscription.expiresAt = expiresAt;
-  await subscription.save();
-  await User.updateOne({ _id: user._id }, {
-    $set: { isPremium: true, premiumExpiresAt: expiresAt, subscriptionPlan: subscription.plan },
-  });
+  return expiresAt;
 };
 
-module.exports = { startCheckout, getSubscription, processPaymentCaptured };
+module.exports = { startCheckout, getSubscription, processPaymentCaptured, calculateExpiry };

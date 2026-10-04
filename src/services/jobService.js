@@ -58,7 +58,7 @@ const processRecurringJob = async (job) => {
     await Expense.create({
       userId: recurring.userId,
       merchant: recurring.merchant,
-      amount: recurring.amount,
+      amountMinor: recurring.amountMinor,
       category: recurring.category,
       expenseDate: scheduledAt,
       idempotencyKey,
@@ -123,6 +123,10 @@ const startJobWorker = () => {
       for (let count = 0; count < 10 && await processOneJob(); count += 1) {
         if (stopped) break;
       }
+    } catch (error) {
+      console.error("Background job polling failed", {
+        name: error?.name || "Error",
+      });
     } finally {
       running = false;
     }

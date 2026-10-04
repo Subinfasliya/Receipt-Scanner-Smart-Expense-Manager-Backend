@@ -4,7 +4,7 @@ Express 5 and MongoDB backend for expenses, receipts, recurring transactions, an
 
 ## Local Setup
 
-1. Use Node.js 20 or later and MongoDB 6 or later.
+1. Use Node.js 20 or later and MongoDB 6 or later configured as a replica set. Refresh-token rotation, password resets, and payment activation use transactions; a standalone MongoDB server is not sufficient.
 2. Run `npm ci`.
 3. Copy `.env.example` to `.env`, set MongoDB, SMTP, and two independent random token secrets. Generate a secret with `node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'))"`.
 4. Run `npm test` and `npm start`.
@@ -35,6 +35,7 @@ Use `Authorization: Bearer <access-token>` for protected routes. Receipt OCR, re
 - Razorpay webhooks are verified against the exact raw request bytes, deduplicated by provider event ID, and checked against the expected order amount/currency before premium activation.
 - Mutations write metadata-only audit events. Logs expire after one year; request bodies and payment payloads are not stored.
 - Recurring expenses use a Mongo-backed, retryable job queue with deduplication keys. Run a single Render web instance unless the database and deployment are configured to support the worker's multi-instance operation.
+- Monetary amounts are stored as integer minor units. For an existing database, back it up, stop old application instances or writes, run `npm run migrate:money` once, then deploy the new application version. The migration aborts before writes if it finds values above the supported range.
 - Set `ALLOWED_ORIGINS` to the exact frontend origins, configure Render's MongoDB network access, and use a managed MongoDB deployment with backups and TLS.
 - `npm audit` should be run as part of release review. Rotate secrets immediately if they are exposed.
 
