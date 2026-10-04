@@ -18,6 +18,10 @@ const envSchema = Joi.object({
   ACCESS_TOKEN_SECRET: Joi.string().allow("").default(""),
   JWT_ACCESS_SECRET: Joi.string().allow("").default(""),
 
+  ADMIN_NAME: Joi.string().default("System Administrator"),
+  ADMIN_EMAIL: Joi.string().email().allow("").default("admin@scanspend.local"),
+  ADMIN_PASSWORD: Joi.string().allow("").default("Admin@12345"),
+
   REFRESH_TOKEN_SECRET: Joi.string().allow("").default(""),
   JWT_REFRESH_SECRET: Joi.string().allow("").default(""),
   ACCESS_TOKEN_EXPIRY: Joi.string().default("15m"),
@@ -134,6 +138,11 @@ const env = Object.freeze({
     refreshSecret,
     accessExpiry: envVars.ACCESS_TOKEN_EXPIRES_IN || envVars.ACCESS_TOKEN_EXPIRY,
     refreshExpiry: envVars.REFRESH_TOKEN_EXPIRES_IN || envVars.REFRESH_TOKEN_EXPIRY,
+  },
+  admin: {
+    name: envVars.ADMIN_NAME,
+    email: envVars.ADMIN_EMAIL,
+    password: envVars.ADMIN_PASSWORD,
   },
   smtp: {
     host: envVars.SMTP_HOST,
