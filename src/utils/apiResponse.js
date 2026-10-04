@@ -6,12 +6,14 @@ const successResponse = (res, statusCode, message, data = null) => {
   });
 };
 
-const errorResponse = (res, statusCode, message, errors = null) => {
-  return res.status(statusCode).json({
+const errorResponse = (res, statusCode, message, errors = null, code = null) => {
+  const body = {
     success: false,
     message,
     errors,
-  });
+  };
+  if (code) body.code = code;
+  return res.status(statusCode).json(body);
 };
 
 module.exports = {
